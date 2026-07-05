@@ -229,12 +229,25 @@ final class NotesViewModel {
 
     private func scheduleSave() {
         saveTask?.cancel()
+        
+        let delay = UserDefaults.standard.double(forKey: "autoSaveDelay")
+        let actualDelay = delay > 0 ? delay : 1.0
+
         saveTask = Task {
-            try? await Task.sleep(for: .seconds(1))
+            try? await Task.sleep(for: .seconds(actualDelay))
             if !Task.isCancelled {
                 saveCurrentNoteIfNeeded()
+                // 保存后自动触发同步
+                triggerSync()
             }
         }
+    }
+
+    /// 强制保存并立即同步（用于快捷键）
+    func forceSaveAndSync() {
+        saveTask?.cancel()
+        saveCurrentNoteIfNeeded()
+        triggerSync()
     }
 
     // MARK: - 目录监听

@@ -52,6 +52,13 @@ struct SettingsView: View {
                         viewModel.updatePeriodicSync()
                     }
                 }
+                
+                VStack(alignment: .leading) {
+                    Text("打字停顿自动保存延迟: \(String(format: "%.1f", autoSaveDelay)) 秒")
+                    Slider(value: $autoSaveDelay, in: 0.5...5.0, step: 0.5) { _ in
+                        saveWebDAVSettings()
+                    }
+                }
             }
 
             Section("笔记存储") {
@@ -75,6 +82,7 @@ struct SettingsView: View {
     @State private var webdavUsername: String = ""
     @State private var webdavPassword: String = ""
     @State private var syncInterval: Double = 30.0
+    @State private var autoSaveDelay: Double = 1.0
 
     private func loadWebDAVSettings() {
         webdavURL = UserDefaults.standard.string(forKey: "webdavURL") ?? ""
@@ -84,11 +92,15 @@ struct SettingsView: View {
         }
         let interval = UserDefaults.standard.double(forKey: "syncInterval")
         syncInterval = interval >= 5 ? interval : 30.0
+        
+        let delay = UserDefaults.standard.double(forKey: "autoSaveDelay")
+        autoSaveDelay = delay > 0 ? delay : 1.0
     }
 
     private func saveWebDAVSettings() {
         UserDefaults.standard.set(webdavURL, forKey: "webdavURL")
         UserDefaults.standard.set(syncInterval, forKey: "syncInterval")
+        UserDefaults.standard.set(autoSaveDelay, forKey: "autoSaveDelay")
 
         let oldUsername = UserDefaults.standard.string(forKey: "webdavUsername") ?? ""
         if oldUsername != webdavUsername && !oldUsername.isEmpty {

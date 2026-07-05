@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "NativeNotes"
+rootProject.name = "Jot"
 include(":app")

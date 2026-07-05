@@ -34,6 +34,14 @@ struct EditorView: View {
             PlainTextView(text: $vm.currentContent)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .background(
+            Button("") {
+                viewModel.forceSaveAndSync()
+            }
+            .keyboardShortcut("s", modifiers: .command)
+            .opacity(0)
+            .frame(width: 0, height: 0)
+        )
     }
 }
 
