@@ -67,9 +67,7 @@ final class NotesViewModel {
     private var directoryMonitor: DispatchSourceFileSystemObject?
     private var monitoredFD: Int32 = -1
 
-    /// 周期性同步定时器
-    // swiftlint:disable:next nonisolated_unsafe
-    nonisolated(unsafe) private var periodicSyncTimer: Timer?
+    @ObservationIgnored private var periodicSyncTask: Task<Void, Never>?
 
     // MARK: - 初始化
 
@@ -91,8 +89,7 @@ final class NotesViewModel {
         isLoggedIn = false
         // 停止监听和定时同步
         stopWatching()
-        periodicSyncTimer?.invalidate()
-        periodicSyncTimer = nil
+        stopPeriodicSync()
         // 清空内容
         notes.removeAll()
         selectedNote = nil
@@ -101,8 +98,7 @@ final class NotesViewModel {
     }
 
     deinit {
-        periodicSyncTimer?.invalidate()
-        periodicSyncTimer = nil
+        periodicSyncTask?.cancel()
     }
 
     // MARK: - 笔记操作
@@ -215,19 +211,18 @@ final class NotesViewModel {
         let interval = UserDefaults.standard.double(forKey: "syncInterval")
         let actualInterval = interval >= 5 ? interval : 30.0
 
-        periodicSyncTimer = Timer.scheduledTimer(withTimeInterval: actualInterval, repeats: true) { [weak self] _ in
-            Task { @MainActor [weak self] in
+        periodicSyncTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(actualInterval))
+                if Task.isCancelled { break }
                 self?.triggerSync()
             }
-        }
-        if let t = periodicSyncTimer {
-            RunLoop.main.add(t, forMode: .common)
         }
     }
 
     private func stopPeriodicSync() {
-        periodicSyncTimer?.invalidate()
-        periodicSyncTimer = nil
+        periodicSyncTask?.cancel()
+        periodicSyncTask = nil
     }
 
     // MARK: - 延迟保存

@@ -6,14 +6,20 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
 import java.util.Base64
+import org.xmlpull.v1.XmlPullParser
+import org.xmlpull.v1.XmlPullParserFactory
+import java.io.StringReader
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
+
+class WebDAVException(val code: Int, message: String) : IOException(message)
 
 data class WebDAVFile(
     val name: String,
     val href: String,
     val eTag: String,
+    val lastModifiedStr: String,
     val isDirectory: Boolean
 )
 
@@ -46,6 +52,7 @@ class WebDAVClient(
                 <d:prop>
                     <d:getetag/>
                     <d:resourcetype/>
+                    <d:getlastmodified/>
                 </d:prop>
             </d:propfind>
         """.trimIndent().toRequestBody("text/xml".toMediaType())
@@ -64,7 +71,7 @@ class WebDAVClient(
 
             override fun onResponse(call: Call, response: Response) {
                 if (!response.isSuccessful) {
-                    continuation.resumeWithException(IOException("Unexpected code $response"))
+                    continuation.resumeWithException(WebDAVException(response.code, "Unexpected code $response"))
                     return
                 }
                 val body = response.body?.string() ?: ""
@@ -77,20 +84,58 @@ class WebDAVClient(
 
     private fun parsePropfindResponse(xml: String): List<WebDAVFile> {
         val files = mutableListOf<WebDAVFile>()
-        // Improved regex to handle namespaces and case sensitivity
-        val responseRegex = Regex("<[^>]*response>([\\s\\S]*?)</[^>]*response>", RegexOption.IGNORE_CASE)
-        val hrefRegex = Regex("<[^>]*href>([\\s\\S]*?)</[^>]*href>", RegexOption.IGNORE_CASE)
-        val etagRegex = Regex("<[^>]*getetag>([\\s\\S]*?)</[^>]*getetag>", RegexOption.IGNORE_CASE)
-        val collectionRegex = Regex("<[^>]*collection\\s*/>", RegexOption.IGNORE_CASE)
+        val factory = XmlPullParserFactory.newInstance()
+        factory.isNamespaceAware = true
+        val parser = factory.newPullParser()
+        parser.setInput(StringReader(xml))
 
-        responseRegex.findAll(xml).forEach { match ->
-            val content = match.groupValues[1]
-            val href = hrefRegex.find(content)?.groupValues?.get(1)?.trim() ?: ""
-            val etag = etagRegex.find(content)?.groupValues?.get(1)?.trim()?.replace("\"", "") ?: ""
-            val isDirectory = collectionRegex.containsMatchIn(content)
-            
-            val name = href.trimEnd('/').split('/').last()
-            files.add(WebDAVFile(name, href, etag, isDirectory))
+        var eventType = parser.eventType
+        var currentHref = ""
+        var currentEtag = ""
+        var currentLastModified = ""
+        var isDirectory = false
+        var inResponse = false
+        var currentTag = ""
+
+        while (eventType != XmlPullParser.END_DOCUMENT) {
+            when (eventType) {
+                XmlPullParser.START_TAG -> {
+                    currentTag = parser.name.lowercase()
+                    if (currentTag == "response") {
+                        inResponse = true
+                        currentHref = ""
+                        currentEtag = ""
+                        currentLastModified = ""
+                        isDirectory = false
+                    } else if (currentTag == "collection") {
+                        if (inResponse) isDirectory = true
+                    }
+                }
+                XmlPullParser.TEXT -> {
+                    if (inResponse) {
+                        val text = parser.text.trim()
+                        if (text.isNotEmpty()) {
+                            when (currentTag) {
+                                "href" -> currentHref += text
+                                "getetag" -> currentEtag += text.replace("\"", "")
+                                "getlastmodified" -> currentLastModified += text
+                            }
+                        }
+                    }
+                }
+                XmlPullParser.END_TAG -> {
+                    val name = parser.name.lowercase()
+                    if (name == "response") {
+                        if (currentHref.isNotEmpty()) {
+                            val fileName = currentHref.trimEnd('/').split('/').last()
+                            files.add(WebDAVFile(fileName, currentHref, currentEtag, currentLastModified, isDirectory))
+                        }
+                        inResponse = false
+                    }
+                    currentTag = ""
+                }
+            }
+            eventType = parser.next()
         }
         return files
     }
@@ -110,7 +155,7 @@ class WebDAVClient(
 
             override fun onResponse(call: Call, response: Response) {
                 if (!response.isSuccessful) {
-                    continuation.resumeWithException(IOException("Unexpected code $response"))
+                    continuation.resumeWithException(WebDAVException(response.code, "Unexpected code $response"))
                     return
                 }
                 continuation.resume(response.body?.bytes() ?: byteArrayOf())
@@ -133,7 +178,7 @@ class WebDAVClient(
 
             override fun onResponse(call: Call, response: Response) {
                 if (!response.isSuccessful) {
-                    continuation.resumeWithException(IOException("Unexpected code $response"))
+                    continuation.resumeWithException(WebDAVException(response.code, "Unexpected code $response"))
                     return
                 }
                 // Check both ETag and etag headers
@@ -158,7 +203,7 @@ class WebDAVClient(
 
             override fun onResponse(call: Call, response: Response) {
                 if (!response.isSuccessful && response.code != 404) {
-                    continuation.resumeWithException(IOException("Unexpected code $response"))
+                    continuation.resumeWithException(WebDAVException(response.code, "Unexpected code $response"))
                     return
                 }
                 continuation.resume(Unit)
@@ -181,7 +226,7 @@ class WebDAVClient(
 
             override fun onResponse(call: Call, response: Response) {
                 if (!response.isSuccessful && response.code != 405) { // 405 means already exists
-                    continuation.resumeWithException(IOException("Unexpected code $response"))
+                    continuation.resumeWithException(WebDAVException(response.code, "Unexpected code $response"))
                     return
                 }
                 continuation.resume(Unit)

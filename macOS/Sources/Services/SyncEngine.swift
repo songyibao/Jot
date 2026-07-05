@@ -25,6 +25,13 @@ class SyncEngine {
     private var syncState: SyncState = SyncState()
     
     init() {}
+
+    private func parseWebDAVDate(_ dateString: String) -> Date {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss z"
+        return formatter.date(from: dateString) ?? Date()
+    }
     
     private func syncStateURL(in directoryURL: URL) -> URL {
         return directoryURL.appendingPathComponent(".sync_state.json")
@@ -180,6 +187,9 @@ class SyncEngine {
                         let remoteData = try await client.download(path: remote.href)
                         try remoteData.write(to: localURL)
                         
+                        let remoteModDate = parseWebDAVDate(remote.lastModifiedStr)
+                        try? fileManager.setAttributes([.modificationDate: remoteModDate], ofItemAtPath: localURL.path)
+                        
                         // 更新主文件状态
                         if let newAttrs = try? fileManager.attributesOfItem(atPath: localURL.path),
                            let newModDate = newAttrs[.modificationDate] as? Date {
@@ -189,6 +199,10 @@ class SyncEngine {
                         // 远端变了，本地没变：下载
                         let remoteData = try await client.download(path: remote.href)
                         try remoteData.write(to: localURL)
+                        
+                        let remoteModDate = parseWebDAVDate(remote.lastModifiedStr)
+                        try? fileManager.setAttributes([.modificationDate: remoteModDate], ofItemAtPath: localURL.path)
+                        
                         if let newAttrs = try? fileManager.attributesOfItem(atPath: localURL.path),
                            let newModDate = newAttrs[.modificationDate] as? Date {
                             newSyncState.files[name] = FileSyncState(eTag: remote.eTag, localModifiedDate: newModDate)
@@ -221,6 +235,10 @@ class SyncEngine {
                         // 下载
                         let remoteData = try await client.download(path: remote.href)
                         try remoteData.write(to: localURL)
+                        
+                        let remoteModDate = parseWebDAVDate(remote.lastModifiedStr)
+                        try? fileManager.setAttributes([.modificationDate: remoteModDate], ofItemAtPath: localURL.path)
+                        
                         if let newAttrs = try? fileManager.attributesOfItem(atPath: localURL.path),
                            let newModDate = newAttrs[.modificationDate] as? Date {
                             newSyncState.files[name] = FileSyncState(eTag: remote.eTag, localModifiedDate: newModDate)

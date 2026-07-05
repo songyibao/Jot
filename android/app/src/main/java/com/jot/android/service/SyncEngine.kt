@@ -5,6 +5,8 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
@@ -30,11 +32,20 @@ object SyncEngine {
     private var isSyncingInternal = false
     private var syncRequested = false
 
-    var status = SyncStatus.IDLE
-        private set
+    private val _status = MutableStateFlow(SyncStatus.IDLE)
+    val status = _status.asStateFlow()
 
-    var lastErrorMessage: String? = null
-        private set
+    private val _lastErrorMessage = MutableStateFlow<String?>(null)
+    val lastErrorMessage = _lastErrorMessage.asStateFlow()
+
+    private fun parseWebDAVDate(dateString: String): Long {
+        return try {
+            val format = SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss z", Locale.US)
+            format.parse(dateString)?.time ?: System.currentTimeMillis()
+        } catch (e: Exception) {
+            System.currentTimeMillis()
+        }
+    }
 
     private fun getSyncStateFile(directory: File): File {
         return File(directory, ".sync_state.json")
@@ -94,14 +105,14 @@ object SyncEngine {
         try {
             do {
                 mutex.withLock { syncRequested = false }
-                status = SyncStatus.SYNCING
+                _status.value = SyncStatus.SYNCING
                 performSync(directory, client)
             } while (syncRequested)
-            status = SyncStatus.SUCCESS
+            _status.value = SyncStatus.SUCCESS
         } catch (e: Exception) {
             Log.e(TAG, "Sync failed", e)
-            status = SyncStatus.ERROR
-            lastErrorMessage = e.message
+            _status.value = SyncStatus.ERROR
+            _lastErrorMessage.value = e.message
         } finally {
             mutex.withLock { isSyncingInternal = false }
         }
@@ -113,8 +124,12 @@ object SyncEngine {
         val remoteFilesList = try {
             client.listFiles()
         } catch (e: Exception) {
-            client.mkcol("")
-            client.listFiles()
+            if (e is WebDAVException && e.code == 404) {
+                client.mkcol("")
+                client.listFiles()
+            } else {
+                throw e
+            }
         }
         val remoteFiles = remoteFilesList.associateBy { it.name }
 
@@ -151,11 +166,13 @@ object SyncEngine {
 
                     val remoteData = client.download(remote.href)
                     localFile.writeBytes(remoteData)
+                    localFile.setLastModified(parseWebDAVDate(remote.lastModifiedStr))
                     newFilesState[name] = FileSyncState(remote.eTag, localFile.lastModified())
                 } else if (remoteChanged) {
                     // Remote updated
                     val remoteData = client.download(remote.href)
                     localFile.writeBytes(remoteData)
+                    localFile.setLastModified(parseWebDAVDate(remote.lastModifiedStr))
                     newFilesState[name] = FileSyncState(remote.eTag, localFile.lastModified())
                 } else if (localChanged) {
                     // Local updated
@@ -182,6 +199,7 @@ object SyncEngine {
                     val remoteData = client.download(remote.href)
                     val newLocalFile = File(directory, name)
                     newLocalFile.writeBytes(remoteData)
+                    newLocalFile.setLastModified(parseWebDAVDate(remote.lastModifiedStr))
                     newFilesState[name] = FileSyncState(remote.eTag, newLocalFile.lastModified())
                 }
             }

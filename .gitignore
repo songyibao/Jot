@@ -47,3 +47,6 @@ tmp/
 run_mac.sh
 build_release_mac.sh
 *.sh
+
+# ─── 杂项 ───
+misc/

@@ -103,48 +103,71 @@ final class WebDAVClient: Sendable {
         }
     }
     
-    // MARK: - XML Parsing (Very basic)
+    // MARK: - XML Parsing
     
     private func parsePropfindResponse(data: Data) -> [WebDAVFile] {
-        let xmlString = String(data: data, encoding: .utf8) ?? ""
-        var files = [WebDAVFile]()
-        
-        // 由于不想引入复杂的 XML 解析库，这里使用正则提取 <d:response>
-        let responseRegex = try! NSRegularExpression(pattern: "<[a-zA-Z0-9:]*response>([\\s\\S]*?)</[a-zA-Z0-9:]*response>", options: [])
-        let matches = responseRegex.matches(in: xmlString, range: NSRange(location: 0, length: xmlString.utf16.count))
-        
-        for match in matches {
-            guard let range = Range(match.range(at: 1), in: xmlString) else { continue }
-            let responseStr = String(xmlString[range])
-            
-            // 提取 href
-            let href = extractTagContent(from: responseStr, tag: "href") ?? ""
-            guard href.hasSuffix(".md") else { continue } // 我们只关心 md 文件
-            
-            let name = URL(string: href)?.lastPathComponent ?? ""
-            if name.isEmpty { continue }
-            
-            // 提取 ETag
-            let etag = extractTagContent(from: responseStr, tag: "getetag")?.trimmingCharacters(in: CharacterSet(charactersIn: "\"")) ?? ""
-            
-            // 提取 LastModified
-            let lastModifiedStr = extractTagContent(from: responseStr, tag: "getlastmodified") ?? ""
-            
-            files.append(WebDAVFile(name: name, href: href, eTag: etag, lastModifiedStr: lastModifiedStr))
-        }
-        
+        let parser = WebDAVXMLParser()
+        return parser.parse(data: data)
+    }
+}
+
+final class WebDAVXMLParser: NSObject, XMLParserDelegate {
+    var files: [WebDAVFile] = []
+    private var currentElement = ""
+    private var currentHref = ""
+    private var currentEtag = ""
+    private var currentLastModified = ""
+    private var inResponse = false
+    
+    func parse(data: Data) -> [WebDAVFile] {
+        let parser = XMLParser(data: data)
+        parser.delegate = self
+        parser.parse()
         return files
     }
     
-    private func extractTagContent(from xml: String, tag: String) -> String? {
-        // 匹配 <d:tag>content</d:tag> 或 <tag>content</tag>
-        let regex = try! NSRegularExpression(pattern: "<(?:[a-zA-Z0-9]+:)?\(tag)>(.*?)</(?:[a-zA-Z0-9]+:)?\(tag)>", options: [])
-        if let match = regex.firstMatch(in: xml, range: NSRange(location: 0, length: xml.utf16.count)) {
-            if let range = Range(match.range(at: 1), in: xml) {
-                return String(xml[range])
-            }
+    func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName qName: String?, attributes attributeDict: [String : String] = [:]) {
+        let name = (elementName.components(separatedBy: ":").last ?? elementName).lowercased()
+        currentElement = name
+        
+        if name == "response" {
+            inResponse = true
+            currentHref = ""
+            currentEtag = ""
+            currentLastModified = ""
         }
-        return nil
+    }
+    
+    func parser(_ parser: XMLParser, foundCharacters string: String) {
+        guard inResponse else { return }
+        let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty { return }
+        
+        if currentElement == "href" {
+            currentHref += trimmed
+        } else if currentElement == "getetag" {
+            currentEtag += trimmed
+        } else if currentElement == "getlastmodified" {
+            currentLastModified += trimmed
+        }
+    }
+    
+    func parser(_ parser: XMLParser, didEndElement elementName: String, namespaceURI: String?, qualifiedName qName: String?) {
+        let name = (elementName.components(separatedBy: ":").last ?? elementName).lowercased()
+        
+        if name == "response" {
+            if currentHref.hasSuffix(".md") {
+                if let url = URL(string: currentHref) {
+                    let fileName = url.lastPathComponent
+                    if !fileName.isEmpty {
+                        let etag = currentEtag.trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+                        files.append(WebDAVFile(name: fileName, href: currentHref, eTag: etag, lastModifiedStr: currentLastModified))
+                    }
+                }
+            }
+            inResponse = false
+        }
+        currentElement = ""
     }
 }
 

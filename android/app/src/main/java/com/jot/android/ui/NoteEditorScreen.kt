@@ -2,6 +2,7 @@ package com.jot.android.ui
 
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -169,7 +170,8 @@ fun NoteEditorScreen(
             },
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding),
+                .padding(padding)
+                .imePadding(),
             placeholder = {
                 Text(
                     "开始写点什么…",
