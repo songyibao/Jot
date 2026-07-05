@@ -142,6 +142,7 @@ final class NotesViewModel {
             if let newNote = notes.first(where: { $0.url == fileURL }) {
                 selectNote(newNote)
             }
+            triggerSync()
         } catch {
             print("创建笔记失败: \(error)")
         }
@@ -157,6 +158,7 @@ final class NotesViewModel {
                 hasUnsavedChanges = false
             }
             loadNotes()
+            triggerSync()
         } catch {
             print("删除笔记失败: \(error)")
         }

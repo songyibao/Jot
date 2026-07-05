@@ -6,6 +6,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Refresh
@@ -26,7 +27,7 @@ import com.jot.android.util.SettingsManager
 import java.text.SimpleDateFormat
 import java.util.*
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun NoteListScreen(
     viewModel: NoteListViewModel,
@@ -40,6 +41,15 @@ fun NoteListScreen(
     val context = LocalContext.current
     val settingsManager = remember { SettingsManager(context) }
     val listFontSize = settingsManager.listFontSize
+    val listState = rememberLazyListState()
+
+    // 当列表顶部的元素发生变化时（比如新增了笔记，或者某篇笔记被修改而跃升到顶部）
+    // 无论当前处于列表的什么位置，都平滑滚动到最顶端
+    LaunchedEffect(notes.firstOrNull()?.file?.absolutePath) {
+        if (notes.isNotEmpty()) {
+            listState.animateScrollToItem(0)
+        }
+    }
 
     // 同步按钮旋转动画
     val rotation by rememberInfiniteTransition(label = "sync_spin").animateFloat(
@@ -152,22 +162,25 @@ fun NoteListScreen(
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(padding)
+                    .padding(padding),
+                state = listState
             ) {
                 items(notes, key = { it.file.absolutePath }) { note ->
-                    NoteRow(
-                        note = note,
-                        listFontSize = listFontSize,
-                        onClick = { 
-                            if (!isSyncing) viewModel.triggerSync()
-                            onNoteClick(note) 
-                        },
-                        onLongClick = { noteToDelete = note }
-                    )
-                    HorizontalDivider(
-                        color = MaterialTheme.colorScheme.outlineVariant,
-                        thickness = 0.5.dp
-                    )
+                    Column(modifier = Modifier.animateItemPlacement()) {
+                        NoteRow(
+                            note = note,
+                            listFontSize = listFontSize,
+                            onClick = { 
+                                if (!isSyncing) viewModel.triggerSync()
+                                onNoteClick(note) 
+                            },
+                            onLongClick = { noteToDelete = note }
+                        )
+                        HorizontalDivider(
+                            color = MaterialTheme.colorScheme.outlineVariant,
+                            thickness = 0.5.dp
+                        )
+                    }
                 }
             }
         }
