@@ -1,13 +1,21 @@
-# Jot - 极简原生备忘录
+<h1 align="center">Jot - 极简原生备忘录</h1>
 
-> **Jot** 是一款为追求极简、安全与原生体验的用户打造的跨平台纯文本备忘录应用。
-> 它放弃了复杂的排版、文件夹和私有云后端，**专注于记录本身**，并通过标准的 **WebDAV** 协议在 macOS 和 Android 之间实现无缝的跨端同步。
+<p align="center">
+  <img src="assets/icon.png" width="120" style="border-radius: 20%;" alt="Jot Logo">
+</p>
 
-![Jot Logo](assets/logo.png)
+**Jot** 是一款为追求极简、安全与原生体验的用户打造的跨平台纯文本备忘录应用。
+它放弃了复杂的排版、文件夹和私有云后端，**专注于记录本身**，并通过标准的 **WebDAV** 协议在 macOS 和 Android 之间实现无缝的跨端同步。
+
+<p align="center">
+  <img src="assets/mac.png" width="500" alt="macOS 截图">
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="assets/android.jpg" width="150" alt="Android 截图">
+</p>
 
 ## ✨ 核心理念与特性
 
-- 🪶 **极简纯文本**：没有繁杂的 Markdown 渲染，没有任何花哨的格式干扰，只提供最纯粹的文本编辑体验。
+- 🪶 **极简纯文本**：没有额外的格式渲染，只提供最纯粹的文本编辑体验。
 - ⚡️ **极致原生体验**：
   - **macOS 端**：基于最新的 SwiftUI 架构，完美融入 macOS 设计语言，启动迅速，资源占用极低。
   - **Android 端**：采用最新的 Kotlin + Jetpack Compose 构建，支持 Material 3 动态取色机制。

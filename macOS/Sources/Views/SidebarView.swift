@@ -23,13 +23,29 @@ struct SidebarView: View {
         .navigationTitle("Jot")
         .safeAreaInset(edge: .bottom) {
             HStack {
-                Text("\(viewModel.notes.count) 篇笔记")
+                Text("\(viewModel.notes.count) 篇备忘")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 8)
+            .padding(.bottom, 8)
+            .padding(.top, 24)
+            .background(
+                Rectangle()
+                    .fill(.ultraThinMaterial)
+                    .mask(
+                        LinearGradient(
+                            stops: [
+                                .init(color: .clear, location: 0.0),
+                                .init(color: .black, location: 0.6),
+                                .init(color: .black, location: 1.0)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+            )
         }
     }
 }
