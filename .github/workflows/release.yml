@@ -76,7 +76,7 @@ jobs:
           hdiutil create -volname "Jot" -srcfolder "$DMG_TMP_DIR" -ov -format UDZO "../$DMG_NAME"
 
       - name: Upload macOS Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: macos-dmg
           path: Jot-macOS-*.dmg
@@ -89,7 +89,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: '17'
           distribution: 'temurin'
@@ -103,7 +103,7 @@ jobs:
           cp app/build/outputs/apk/debug/app-debug.apk ../Jot-Android-${GITHUB_REF_NAME}.apk
 
       - name: Upload Android Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: android-apk
           path: Jot-Android-*.apk
@@ -116,12 +116,12 @@ jobs:
       contents: write # 必须的权限，用于创建 Release
     steps:
       - name: Download macOS Artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: macos-dmg
 
       - name: Download Android Artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: android-apk
 
