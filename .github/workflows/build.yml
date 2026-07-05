@@ -13,16 +13,75 @@ jobs:
 
     steps:
     - name: Checkout Repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
 
     - name: Select Xcode Version
       uses: maxim-lobanov/setup-xcode@v1
       with:
         xcode-version: latest-stable
 
-    - name: Build macOS App (Release)
+    - name: Build and Package macOS App
       working-directory: ./macOS
-      run: swift build -c release
+      run: |
+        echo "🚀 正在编译 macOS 版本..."
+        swift build -c release
+
+        echo "📦 正在组装 Jot.app..."
+        APP_BUNDLE=".build/release/Jot.app"
+        APP_MAC_DIR="$APP_BUNDLE/Contents/MacOS"
+        APP_RES_DIR="$APP_BUNDLE/Contents/Resources"
+        
+        mkdir -p "$APP_MAC_DIR"
+        mkdir -p "$APP_RES_DIR"
+        
+        cp .build/release/Jot "$APP_MAC_DIR/"
+        
+        # 生成 Info.plist
+        cat > "$APP_BUNDLE/Contents/Info.plist" <<EOF
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+            <key>CFBundleExecutable</key>
+            <string>Jot</string>
+            <key>CFBundleIdentifier</key>
+            <string>com.jot.macos</string>
+            <key>CFBundleName</key>
+            <string>Jot</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+            <key>CFBundleShortVersionString</key>
+            <string>CI-Build</string>
+            <key>LSMinimumSystemVersion</key>
+            <string>15.0</string>
+            <key>NSHighResolutionCapable</key>
+            <true/>
+            <key>CFBundleIconFile</key>
+            <string>AppIcon</string>
+        </dict>
+        </plist>
+        EOF
+        
+        if [ -d "Media.xcassets" ]; then
+            echo "🎨 正在编译资源文件..."
+            actool Media.xcassets --compile "$APP_RES_DIR" --platform macosx --minimum-deployment-target 15.0 --app-icon AppIcon --output-partial-info-plist .build/release/PartialInfo.plist > /dev/null
+        fi
+        
+        echo "💿 正在打包 DMG..."
+        DMG_NAME="Jot-macOS-CI.dmg"
+        DMG_TMP_DIR=".build/release/dmg_tmp"
+        mkdir -p "$DMG_TMP_DIR"
+        
+        cp -R "$APP_BUNDLE" "$DMG_TMP_DIR/"
+        ln -s /Applications "$DMG_TMP_DIR/Applications"
+        
+        hdiutil create -volname "Jot" -srcfolder "$DMG_TMP_DIR" -ov -format UDZO "../$DMG_NAME"
+
+    - name: Upload macOS Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: macos-dmg
+        path: Jot-macOS-CI.dmg
 
   build-android:
     name: Build Android App
@@ -30,7 +89,7 @@ jobs:
 
     steps:
     - name: Checkout Repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
 
     - name: Set up JDK 17
       uses: actions/setup-java@v4
