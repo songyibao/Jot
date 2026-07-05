@@ -1,0 +1,49 @@
+# ==============================
+# Jot Monorepo .gitignore
+# ==============================
+
+# ─── macOS & iOS (Swift/Xcode) ───
+.DS_Store
+macOS/.build/
+macOS/.swiftpm/
+macOS/DerivedData/
+macOS/build/
+macOS/**/*.xcodeproj/project.xcworkspace/xcuserdata/
+macOS/**/*.xcodeproj/xcuserdata/
+macOS/**/*.xcworkspace/xcuserdata/
+macOS/xcuserdata/
+*.orig
+*.dmg
+*.ipa
+*.app
+
+# ─── Android (Kotlin/Gradle) ───
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+android/**/*.iml
+android/.cxx/
+*.apk
+
+# ─── 敏感信息与密钥 ───
+*.keystore
+*.jks
+android/app/key.properties
+# 确保绝对不会上传任何硬编码凭据的本地测试配置
+secrets.xml
+secrets.properties
+
+# ─── 本地测试与日志 ───
+*.log
+app_debug.log
+test.swift
+temp/
+tmp/
+*.tmp
+
+# ─── 本地构建脚本 (包含本地绝对路径，用户要求不上传) ───
+run_mac.sh
+build_release_mac.sh
+*.sh
