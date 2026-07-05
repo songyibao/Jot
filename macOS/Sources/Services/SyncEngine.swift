@@ -58,29 +58,6 @@ class SyncEngine {
         }
     }
     
-    enum NoteSyncState {
-        case synced
-        case pending
-        case conflict
-    }
-    
-    func fileSyncState(for fileURL: URL, localModifiedDate: Date) -> NoteSyncState {
-        let name = fileURL.lastPathComponent
-        if name.contains("_conflict_") {
-            return .conflict
-        }
-        guard let state = syncState.files[name] else {
-            print("SyncEngine [\(name)]: state is nil -> pending")
-            return .pending // 尚未同步过
-        }
-        let diff = abs(localModifiedDate.timeIntervalSince(state.localModifiedDate))
-        if diff > 1.0 {
-            print("SyncEngine [\(name)]: local(\(localModifiedDate.timeIntervalSince1970)) != state(\(state.localModifiedDate.timeIntervalSince1970)), diff: \(diff) -> pending")
-            return .pending // 本地已修改，等待同步
-        }
-        return .synced // 已同步
-    }
-    
     private var isSyncingGuard = false
     private var syncRequested = false
     

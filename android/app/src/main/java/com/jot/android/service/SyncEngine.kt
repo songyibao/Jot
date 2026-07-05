@@ -51,9 +51,6 @@ object SyncEngine {
         return File(directory, ".sync_state.json")
     }
 
-    // 供 ViewModel 查询当前 syncState 以驱动 UI 指示灯
-    fun loadSyncStatePublic(directory: File): SyncState = loadSyncState(directory)
-
     // 使用 TypeToken 精确指定泛型类型，解决 Gson 类型擦除导致 FileSyncState
     // 被反序列化为 LinkedTreeMap 而非正确类型的致命 Bug。
     // 直接存储 Map 而非 SyncState 包装类，进一步规避嵌套泛型擦除问题。
@@ -79,18 +76,6 @@ object SyncEngine {
         } catch (e: Exception) {
             Log.e(TAG, "Failed to save sync state: ${e.message}", e)
         }
-    }
-
-    enum class NoteSyncState {
-        SYNCED, PENDING, CONFLICT
-    }
-
-    fun getFileSyncState(file: File, syncState: SyncState): NoteSyncState {
-        if (file.name.contains("_conflict_")) return NoteSyncState.CONFLICT
-        val state = syncState.files[file.name] ?: return NoteSyncState.PENDING
-        
-        val diff = abs(file.lastModified() - state.localModifiedDate)
-        return if (diff > 1500) NoteSyncState.PENDING else NoteSyncState.SYNCED
     }
 
     suspend fun triggerSync(directory: File, client: WebDAVClient) {

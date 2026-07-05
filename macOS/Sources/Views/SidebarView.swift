@@ -51,30 +51,7 @@ struct NoteRow: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-
-            // 同步状态指示灯
-            let state = viewModel.syncEngine.fileSyncState(for: note.url, localModifiedDate: note.modifiedDate)
-            Circle()
-                .fill(stateColor(state))
-                .frame(width: 8, height: 8)
-                .help(stateHelpText(state))
         }
         .padding(.vertical, 2)
-    }
-
-    private func stateColor(_ state: SyncEngine.NoteSyncState) -> Color {
-        switch state {
-        case .synced:   return .green
-        case .pending:  return .yellow
-        case .conflict: return .red
-        }
-    }
-
-    private func stateHelpText(_ state: SyncEngine.NoteSyncState) -> String {
-        switch state {
-        case .synced:   return "已同步"
-        case .pending:  return "待同步（有未上传的修改）"
-        case .conflict: return "同步冲突"
-        }
     }
 }

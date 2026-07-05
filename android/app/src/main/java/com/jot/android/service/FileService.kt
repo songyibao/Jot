@@ -13,29 +13,20 @@ object FileService {
 
     /**
      * 列举目录下所有 .md 文件，按修改时间降序排列
-     * 需传入 syncStateMap 以计算每条笔记的同步状态
      */
-    fun listMarkdownFiles(directory: File, syncStateMap: Map<String, FileSyncState> = emptyMap()): List<Note> {
+    fun listMarkdownFiles(directory: File): List<Note> {
         if (!directory.exists() || !directory.isDirectory) return emptyList()
 
         return directory.listFiles { file -> file.extension.lowercase() == "md" && !file.name.startsWith(".") }
             ?.map { file ->
                 val title = extractTitle(file)
                 val localModDate = file.lastModified()
-                val syncState = run {
-                    if (file.name.contains("_conflict_")) return@run SyncEngine.NoteSyncState.CONFLICT
-                    val state = syncStateMap[file.name]
-                        ?: return@run SyncEngine.NoteSyncState.PENDING
-                    val diff = kotlin.math.abs(localModDate - state.localModifiedDate)
-                    if (diff > 1500) SyncEngine.NoteSyncState.PENDING else SyncEngine.NoteSyncState.SYNCED
-                }
                 Note(
                     id = file.nameWithoutExtension,
                     title = title,
                     modifiedDate = Date(localModDate),
                     file = file,
-                    fileSize = file.length(),
-                    syncState = syncState
+                    fileSize = file.length()
                 )
             }
             ?.sortedByDescending { it.modifiedDate }

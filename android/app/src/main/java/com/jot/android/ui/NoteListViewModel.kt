@@ -48,8 +48,7 @@ class NoteListViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun refreshNotes() {
-        val syncState = SyncEngine.loadSyncStatePublic(notesDir)
-        _notes.value = FileService.listMarkdownFiles(notesDir, syncState.files)
+        _notes.value = FileService.listMarkdownFiles(notesDir)
     }
 
     /** 新建备忘录，创建完成后通过 pendingNavigateToNote 通知 UI 跳转编辑器 */

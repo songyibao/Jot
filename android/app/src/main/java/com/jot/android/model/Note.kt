@@ -21,8 +21,5 @@ data class Note(
     val file: File,
     
     /** 文件大小（字节） */
-    val fileSize: Long,
-    
-    /** 同步状态（由 SyncEngine 实时计算） */
-    val syncState: SyncEngine.NoteSyncState = SyncEngine.NoteSyncState.PENDING
+    val fileSize: Long
 )
